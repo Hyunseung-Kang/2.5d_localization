@@ -9,92 +9,34 @@ using namespace std;
 
 Mat image_size_double(Mat input_image);
 int get_floor_data(Mat input_image);
+Mat image_matching(Mat input_image1, Mat input_image2);
+Mat create_floorless_map(Mat input_image, int threshold);
+
+Mat line_detection(Mat input_image);
 
 int main() {
 
 	Mat src, global;
-	src = imread("maps/3.5m/3.5m 3.pgm", IMREAD_GRAYSCALE);
+	src = imread("maps/3.5m/3.5m 2.pgm", IMREAD_GRAYSCALE);
 	global = imread("maps/global_map.pgm", IMREAD_GRAYSCALE);
-	//imshow("temp_src", src);
-	//imshow("global_src", global);
-	
-	// check for image size.  Global image have to larger than src image.
-	cout << "global rows: " << global.rows << endl;
-	cout << "global cols: " << global.cols << endl;
-	cout << "src rows: " << src.rows << endl;
-	cout << "src cols: " << src.cols << endl;
 
 	// Get Floor data to extract from the map.
 	int global_floor_data = get_floor_data(global);
 	int src_floor_data = get_floor_data(src);
 
 	// Create new map image without floor.
-	Mat global_without_floor = Mat::zeros(global.rows, global.cols, CV_8UC1);
-	for (int j = 0; j < global.rows; j++)
-		for (int i = 0; i < global.cols; i++) {
-			if (global.at<uchar>(j, i) <= global_floor_data+10)
-				global_without_floor.at<uchar>(j, i) = 0;
-			else
-				global_without_floor.at<uchar>(j, i) = global.at<uchar>(j, i);
-		}
-	//imshow("global_without_floor", global_without_floor);
-
-	// Create large global map for image matching.
-	// If global map has less width or height compared with src, it can occur error.
-	Mat large_global_map = image_size_double(global_without_floor);
-	//imshow("double_global", large_global_map);
-
-	Mat filtered_src = Mat::zeros(src.rows, src.cols, CV_8UC1);
-	for (int j = 0; j < src.rows; j++)
-		for (int i = 0; i < src.cols; i++) {
-			if (src.at<uchar>(j, i) <= src_floor_data+10)
-				filtered_src.at<uchar>(j, i) = 0;
-			else
-				filtered_src.at<uchar>(j, i) = src.at<uchar>(j, i);
-		}
-
-	// GaussianBlur mask is unsuitable because it can disturb height information.
-	// GaussianBlur(filtered_src, filtered_src, Size(3, 3), 0);
-	//imshow("src", src);
-	//imshow("Filtered_src", filtered_src);
-
-	double minVal, maxVal;
-	Point minLoc, maxLoc, matchLoc;
-	Mat final;
-	for (int i = 0; i < 6; i++)
-	{
-		Mat img_out;
-		large_global_map.copyTo(img_out);
-
-		int Matching_method = i;
-		matchTemplate(img_out, filtered_src, final, i);
-
-		normalize(final, final, 0, 1, NORM_MINMAX, -1, Mat());
-		minMaxLoc(final, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-		if (Matching_method == 0 || Matching_method == 1) {
-			matchLoc = minLoc;
-		}
-		else
-			matchLoc = maxLoc;
-
-
-		cvtColor(img_out, img_out, COLOR_GRAY2BGR);
-		rectangle(img_out, matchLoc, Point(matchLoc.x + filtered_src.cols, matchLoc.y + filtered_src.rows),
-			Scalar(255, 0, 255), 1);
-
-		circle(img_out, matchLoc, 3, Scalar(0, 0, 255), 1);
-
-
-
-		namedWindow("global", WINDOW_NORMAL);
-		resizeWindow("global", large_global_map.cols, large_global_map.rows);
-		imshow("global", img_out);
-		imshow("templ", filtered_src);
-		waitKey(0);
-
-	}
+	Mat src_floorless, global_floorless;
+	src_floorless = create_floorless_map(src, src_floor_data);
+	global_floorless = create_floorless_map(global, global_floor_data + 10);
 	
+	Mat global_line, src_line;
+	global_line = line_detection(global_floorless);
+	src_line = line_detection(src_floorless);
 
+	imshow("global", global_line);
+	imshow("src", src_line);
+
+	waitKey(0);
 	return 0;
 }
 
@@ -110,7 +52,6 @@ Mat image_size_double(Mat input_image) {
 		}
 	return double_result;
 }
-
 int get_floor_data(Mat input_image) {
 	Mat img_hist;
 	MatND histogram;
@@ -134,4 +75,114 @@ int get_floor_data(Mat input_image) {
 			floor_data = i;
 	}
 	return floor_data;
+}
+Mat image_matching(Mat input_image1, Mat input_image2) {
+	Ptr<Feature2D> feature = ORB::create();
+	vector<KeyPoint> keypoints1, keypoints2;
+	Mat desc1, desc2;
+	feature->detectAndCompute(input_image1, Mat(), keypoints1, desc1);
+	feature->detectAndCompute(input_image2, Mat(), keypoints2, desc2);
+	Ptr<DescriptorMatcher> matcher = BFMatcher::create(NORM_HAMMING);
+	vector<DMatch> matches;
+	matcher->match(desc1, desc2, matches);
+	Mat dst;
+	drawMatches(input_image1, keypoints1, input_image2, keypoints2, matches, dst);
+	imshow("dst", dst);
+
+	waitKey();
+	destroyAllWindows();
+
+	return dst;
+}
+Mat create_floorless_map(Mat input_image, int threshold) {
+	Mat result_img = Mat::zeros(input_image.rows, input_image.cols, CV_8UC1);
+	for (int j = 0; j < input_image.rows; j++)
+		for (int i = 0; i < input_image.cols; i++) {
+			if (input_image.at<uchar>(j, i) <= threshold + 10)
+				result_img.at<uchar>(j, i) = 0;
+			else
+				result_img.at<uchar>(j, i) = input_image.at<uchar>(j, i);
+		}
+	return result_img;
+}
+Mat line_detection(Mat input_image) {
+
+	Mat edge_img;
+	Canny(input_image, edge_img, 240, 255);
+	int houghP_min_len = 30;
+	int houghP_min_cross = 30;
+
+	// Below codes include linesP and houghP means probabilistic of line detection.
+
+	// linesP variable contain position information about line's end point.
+	vector<Vec4i> linesP;
+
+	// (src, dst, rho'default:1', theta(for all direction), minimum cross,
+	// minimum length, 
+	// max_length in a one line(low value can make numerous lines)
+	HoughLinesP(edge_img, linesP, 1, (CV_PI / 180), houghP_min_len, houghP_min_cross, 1000);
+
+	// img_houghP would be dst image that has line data in RGB color scale.
+	Mat img_houghP;
+	input_image.copyTo(img_houghP);
+	cvtColor(img_houghP, img_houghP, COLOR_GRAY2BGR);
+
+
+	// 첫번째 직선 정보는 Group1로 지정.
+	// 두번째 직선부터 첫번째 직선과의 거리 측정 후 일정 값 이상이면 Group2.
+	double line_length = 0.0;
+	vector<Vec4i> group1;		vector<Vec4i> group2;
+
+	for (size_t i = 0; i < linesP.size(); i++)
+	{
+		Vec4i l = linesP[i];
+		if (i == 0)
+			group1.push_back(l);
+		else {
+
+		}
+		cout << "l[0] : " << "\t" << l[0];
+		cout << "\t" << "\t" "l[1] : " << "\t" << l[1];
+		cout << "\t" << "\t" "l[2] : " << "\t" << l[2];
+		cout << "\t" << "\t" "l[3] : " << "\t" << l[3] << endl;
+		double temp_line_length = sqrt(pow(abs(l[0] - l[2]), 2) + pow(abs(l[1] - l[3]), 2));
+		if (temp_line_length > line_length)
+			line_length = temp_line_length;
+		line(img_houghP, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 1, 8);
+	}
+
+	imshow("aa", img_houghP);
+	waitKey(0);
+
+	/*
+	// Below codes include lines, Houghlines means oridinary line detection.
+	vector<Vec2f> lines;
+	HoughLines(edge_img, lines, 1, CV_PI / 180, 30);
+	Mat img_hough;
+	input_image.copyTo(img_hough);
+	cvtColor(img_hough, img_hough, COLOR_GRAY2BGR);
+
+	// img_lane would be black image.
+	Mat img_lane;
+	threshold(edge_img, img_lane, 10, 255, THRESH_MASK);
+
+	for (size_t i = 0; i < lines.size(); i++) {
+		float rho = lines[i][0], theta = lines[i][1];
+		Point pt1, pt2;
+		double a = cos(theta), b = sin(theta);
+		double x0 = a * rho, y0 = b * rho;
+		pt1.x = cvRound(x0 + 1000 * (-b));
+		pt1.y = cvRound(y0 + 1000 * (a));
+		pt2.x = cvRound(x0 - 1000 * (-b));
+		pt2.y = cvRound(y0 - 1000 * (a));
+		line(img_hough, pt1, pt2, Scalar(0, 0, 255), 2, 8);
+		line(img_lane, pt1, pt2, Scalar::all(255), 1, 8);
+	}
+
+	imshow("hough", img_hough);
+	imshow("lane", img_lane);
+	waitKey(0);
+	*/
+
+	return img_houghP;
 }
