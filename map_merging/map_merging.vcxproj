@@ -24,7 +24,7 @@
     <ProjectGuid>{7c5165bb-b97d-456b-ad67-0feca887e90c}</ProjectGuid>
     <RootNamespace>mapmerging</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>feature_extraction</ProjectName>
+    <ProjectName>2.5d_localization</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
