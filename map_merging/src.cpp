@@ -160,31 +160,16 @@ Mat line_detection(Mat input_image) {
 	}
 	Vec2i line1, line2;
 	line1 = get_avg_line(group1);		line2 = get_avg_line(group2);
+	Vec4i line1_pt = get_line_point(line1, input_image);
+	Vec4i line2_pt = get_line_point(line2, input_image);
 
 
-	//// 직선의 y절편이 이미지 밖에 있을 경우
-	//if (line1[1] > img_houghP.rows) {
-	//	int y1 = img_houghP.rows;
-	//	int x1 = double(img_houghP.rows - line1[1]) / line1[0];
-	//	if () {
-	//		// 여기서 y절편이 이미지 밖에 있으면서
-	//		// x=이미지width 일때 y가 이미지 밖인 경우와 이미지 안에 걸치는 경우를 나누자.
-	//	}
-	//}
-	//else if (line1[1] < 0) {
-	//	// 이 경우는 y절편이 0보다 작은 경우이다.
-	//}
-
-
-
-	line(img_houghP, Point(line1[0], line1[1]), Point(line2[0], line2[1]), Scalar(0, 255, 0), 1, 8);
+	line(img_houghP, Point(line1_pt[3], line1_pt[2]), Point(line1_pt[1], line1_pt[0]), Scalar(0, 255, 0), 1, 8);
+	line(img_houghP, Point(line2_pt[2], line2_pt[3]), Point(line2_pt[0], line2_pt[1]), Scalar(0, 255, 0), 1, 8);
 	// Group 1, 2 로 구분되었다.  각각의 그룹에 속한 직선들의 평균을 구해보자.
 	cout << "Group1 size: " << group1.size() << endl;
 	cout << "Group2 size: " << group2.size() << endl;
 	
-	double group1_diff[2];
-	int a = group1.size();
-	//double group1_diff[group1.size()];
 
 	imshow("aa", img_houghP);
 	waitKey(0);
@@ -195,11 +180,56 @@ Mat line_detection(Mat input_image) {
 Vec4i get_line_point(Vec2i input_line, Mat image){
 	// (기울기, 절편)
 	Vec4i pt;	// (x1, y1)  (x2, y2)
+
+	//이미지에서 직선과 겹치는 포인트가 2개 있을 것이다.  이를 어떻게 찾을 것인가.
 	
 
-	int x;	 int y = (input_line[0] * x) + input_line[1];
-	if(input_line[1] < image.rows)
+	///////////// method 1////////////
+	/// 이미지의 네 변 중 겹치는 포인트가 발생할때 그 지점을 저장하자 /////////
+	//if ((input_line[1] > 0) && (input_line[1] < image.rows)) {
+	//	pt[0] = 0;		pt[1] = input_line[1];
+	//}
+	//if (((input_line[0] * image.cols) + input_line[1]) > 0 && ((input_line[0] * image.cols) + input_line[1]) < image.rows) {
+	//	pt[0]
+	//}
 
+
+	/////////  method 2///////
+	////  발생할 수 있는 모든 경우를 생각하자.
+	//// y절편이 이미지 내에 있을 경우
+	//if ((input_line[1] < image.rows) && (input_line[1] > 0)) {
+	//	// 우측 끝점이 이미지의 상단에 위치하는 경우
+	//	pt[0] = 0;	pt[1] = input_line[1];
+	//	if (((input_line[0] * image.cols) + input_line[1]) < 0) {
+	//		pt[2] = input_line[1] * (-1) / input_line[0];	pt[3] = 0;
+	//	}
+	//	// 우측 끝점이 이미지의 하단에 위치하는 경우
+	//	else if (((input_line[0] * image.cols) + input_line[1]) > image.rows) {
+	//		pt[2] = image.rows - input_line[1] / input_line[0];	pt[3] = image.rows;
+	//	}
+	//	// 평행한 직선일 경우
+	//	else {
+	//		pt[2] = image.cols;	pt[3] = (image.cols * input_line[0] + input_line[1]);
+	//	}
+	//}
+	//// y절편이 이미지 내에 없는 경우
+	//else {
+	//	// 우측 끝점이 이미지 내에 있을 경우
+	//	if (((input_line[0] * image.cols) + input_line[1] > 0) && ((input_line[0] * image.cols) + input_line[1] < image.rows)) {
+	//		pt[2] = image.cols;	pt[3] = (input_line[0] * image.cols) + input_line[1];
+	//		if ((input_line[1] * (-1) / input_line[0]) > 0 && (input_line[1] * (-1) / input_line[0]) < image.cols) {
+	//			pt[0] = (input_line[1] * (-1) / input_line[0]);	pt[1] = 0;
+	//		}
+	//		else {
+	//			pt[0] = (image.rows - input_line[1]) / input_line[0];	pt[1] = image.rows;
+	//		}
+	//	}
+	//	else {
+	//		pt[0] = (input_line[1] * (-1) / input_line[0]);	pt[1] = 0;
+	//		pt[2] = (image.rows - input_line[1]) / input_line[0];	pt[3] = image.rows;
+	//	}
+	//}
+	return pt;
 }
 
 
