@@ -11,8 +11,10 @@ Mat image_size_double(Mat input_image);
 int get_floor_data(Mat input_image);
 Mat image_matching(Mat input_image1, Mat input_image2);
 Mat create_floorless_map(Mat input_image, int threshold);
-
+Vec4i get_line_point(Vec2i input_line, Mat image);
 Mat line_detection(Mat input_image);
+double line2point_dist(Point line_point1, Point line_point2, Point point);
+Vec2i get_avg_line(vector<Vec4i> group);
 
 int main() {
 
@@ -133,56 +135,108 @@ Mat line_detection(Mat input_image) {
 	double line_length = 0.0;
 	vector<Vec4i> group1;		vector<Vec4i> group2;
 
+
+	//  현재 직선과 점 사이 거리 구하는것까지 완료되었다.
+	// 이제 거리를 기준으로 그룹을 나누자.
 	for (size_t i = 0; i < linesP.size(); i++)
 	{
 		Vec4i l = linesP[i];
+		cout << "vec4i : " << l << endl;
+		double dist = 0.0;
 		if (i == 0)
 			group1.push_back(l);
 		else {
-
+			//dist = line2point_dist((l[0], l[1]), (l[2], l[3]), (linesP[0][0], linesP[0][1]));
+			Point pt1(l[0], l[1]);
+			Point pt2(l[2], l[3]);
+			Point pt3(linesP[0][0], linesP[0][1]);
+			dist = line2point_dist(pt1, pt2, pt3);
+			if (dist < 5)
+				group1.push_back(l);
+			else
+				group2.push_back(l);
 		}
-		cout << "l[0] : " << "\t" << l[0];
-		cout << "\t" << "\t" "l[1] : " << "\t" << l[1];
-		cout << "\t" << "\t" "l[2] : " << "\t" << l[2];
-		cout << "\t" << "\t" "l[3] : " << "\t" << l[3] << endl;
-		double temp_line_length = sqrt(pow(abs(l[0] - l[2]), 2) + pow(abs(l[1] - l[3]), 2));
-		if (temp_line_length > line_length)
-			line_length = temp_line_length;
-		line(img_houghP, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 1, 8);
+		//line(img_houghP, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 1, 8);
 	}
+	Vec2i line1, line2;
+	line1 = get_avg_line(group1);		line2 = get_avg_line(group2);
+
+
+	//// 직선의 y절편이 이미지 밖에 있을 경우
+	//if (line1[1] > img_houghP.rows) {
+	//	int y1 = img_houghP.rows;
+	//	int x1 = double(img_houghP.rows - line1[1]) / line1[0];
+	//	if () {
+	//		// 여기서 y절편이 이미지 밖에 있으면서
+	//		// x=이미지width 일때 y가 이미지 밖인 경우와 이미지 안에 걸치는 경우를 나누자.
+	//	}
+	//}
+	//else if (line1[1] < 0) {
+	//	// 이 경우는 y절편이 0보다 작은 경우이다.
+	//}
+
+
+
+	line(img_houghP, Point(line1[0], line1[1]), Point(line2[0], line2[1]), Scalar(0, 255, 0), 1, 8);
+	// Group 1, 2 로 구분되었다.  각각의 그룹에 속한 직선들의 평균을 구해보자.
+	cout << "Group1 size: " << group1.size() << endl;
+	cout << "Group2 size: " << group2.size() << endl;
+	
+	double group1_diff[2];
+	int a = group1.size();
+	//double group1_diff[group1.size()];
 
 	imshow("aa", img_houghP);
 	waitKey(0);
 
-	/*
-	// Below codes include lines, Houghlines means oridinary line detection.
-	vector<Vec2f> lines;
-	HoughLines(edge_img, lines, 1, CV_PI / 180, 30);
-	Mat img_hough;
-	input_image.copyTo(img_hough);
-	cvtColor(img_hough, img_hough, COLOR_GRAY2BGR);
+	return img_houghP;
+}
 
-	// img_lane would be black image.
-	Mat img_lane;
-	threshold(edge_img, img_lane, 10, 255, THRESH_MASK);
+Vec4i get_line_point(Vec2i input_line, Mat image){
+	// (기울기, 절편)
+	Vec4i pt;	// (x1, y1)  (x2, y2)
+	
 
-	for (size_t i = 0; i < lines.size(); i++) {
-		float rho = lines[i][0], theta = lines[i][1];
-		Point pt1, pt2;
-		double a = cos(theta), b = sin(theta);
-		double x0 = a * rho, y0 = b * rho;
-		pt1.x = cvRound(x0 + 1000 * (-b));
-		pt1.y = cvRound(y0 + 1000 * (a));
-		pt2.x = cvRound(x0 - 1000 * (-b));
-		pt2.y = cvRound(y0 - 1000 * (a));
-		line(img_hough, pt1, pt2, Scalar(0, 0, 255), 2, 8);
-		line(img_lane, pt1, pt2, Scalar::all(255), 1, 8);
+	int x;	 int y = (input_line[0] * x) + input_line[1];
+	if(input_line[1] < image.rows)
+
+}
+
+
+
+double line2point_dist(Point line_point1, Point line_point2, Point point) {
+
+	int x1 = line_point1.x;	int y1 = line_point1.y;
+	int x2 = line_point2.x;	int y2 = line_point2.y;
+	int new_x = point.x;		int new_y = point.y;
+
+	double upper = abs(((y2 - y1) * new_x) + ((x1 - x2) * new_y) + (x1 * y1 + x2 * y1 - x1 * y2 - x1 * y1));
+	double lower = sqrt(pow(y2 - y1, 2) + pow(x1 - x2, 2));
+
+	double distance = abs( upper / lower);
+
+	return distance;
+}
+
+Vec2i get_avg_line(vector<Vec4i> group) {
+	// 해당 함수는 buff를 입력받아 저장된 좌표들을 통해
+	// 직선들의 평균 기울기와 y절편을 반환한다.
+	// (기울기, 절편)
+
+	double diff = 0.0;	//기울기
+	double y_intercept = 0.0;
+
+	for (int i = 0; i < group.size(); i++) {
+		int x1 = group[i][0];		int y1 = group[i][1];
+		int x2 = group[i][2];		int y2 = group[i][3];
+
+		double diff_temp = (y2 - y1) / (x2 - x1);
+		diff = diff + diff_temp;
+		y_intercept = y_intercept + (diff_temp * (x1) * (-1) + y1);
 	}
 
-	imshow("hough", img_hough);
-	imshow("lane", img_lane);
-	waitKey(0);
-	*/
+	double diff_avg = double(diff) / (group.size());
+	double intercept_avg = double(y_intercept) / (group.size());
 
-	return img_houghP;
+	return (diff_avg, intercept_avg);
 }
