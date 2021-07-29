@@ -11,10 +11,10 @@ Mat image_size_double(Mat input_image);
 int get_floor_data(Mat input_image);
 Mat image_matching(Mat input_image1, Mat input_image2);
 Mat create_floorless_map(Mat input_image, int threshold);
-Vec4i get_line_point(Vec2i input_line, Mat image);
+Vec4i get_line_point(Vec2d input_line, Mat image);
 Mat line_detection(Mat input_image);
 double line2point_dist(Point line_point1, Point line_point2, Point point);
-Vec2i get_avg_line(vector<Vec4i> group);
+Vec2d get_avg_line(vector<Vec4i> group);
 
 int main() {
 
@@ -31,12 +31,11 @@ int main() {
 	src_floorless = create_floorless_map(src, src_floor_data);
 	global_floorless = create_floorless_map(global, global_floor_data + 10);
 	
-	Mat global_line, src_line;
-	global_line = line_detection(global_floorless);
-	src_line = line_detection(src_floorless);
-
-	imshow("global", global_line);
-	imshow("src", src_line);
+	Mat global_line_img, src_line_img;
+	global_line_img = line_detection(global_floorless);
+	src_line_img = line_detection(src_floorless);
+	imshow("global", global_line_img);
+	imshow("src", src_line_img);
 
 	waitKey(0);
 	return 0;
@@ -91,7 +90,6 @@ Mat image_matching(Mat input_image1, Mat input_image2) {
 	drawMatches(input_image1, keypoints1, input_image2, keypoints2, matches, dst);
 	imshow("dst", dst);
 
-	waitKey();
 	destroyAllWindows();
 
 	return dst;
@@ -156,79 +154,61 @@ Mat line_detection(Mat input_image) {
 			else
 				group2.push_back(l);
 		}
-		//line(img_houghP, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 1, 8);
+		line(img_houghP, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 1, 8);
 	}
-	Vec2i line1, line2;
+	Vec2d line1, line2;
 	line1 = get_avg_line(group1);		line2 = get_avg_line(group2);
+
 	Vec4i line1_pt = get_line_point(line1, input_image);
 	Vec4i line2_pt = get_line_point(line2, input_image);
 
-
-	line(img_houghP, Point(line1_pt[3], line1_pt[2]), Point(line1_pt[1], line1_pt[0]), Scalar(0, 255, 0), 1, 8);
-	line(img_houghP, Point(line2_pt[2], line2_pt[3]), Point(line2_pt[0], line2_pt[1]), Scalar(0, 255, 0), 1, 8);
+	line(img_houghP, Point(line1_pt[0], line1_pt[1]), Point(line1_pt[2], line1_pt[3]), Scalar(0, 255, 0), 1, 8);
+	line(img_houghP, Point(line2_pt[0], line2_pt[1]), Point(line2_pt[2], line2_pt[3]), Scalar(0, 255, 0), 1, 8);
 	// Group 1, 2 로 구분되었다.  각각의 그룹에 속한 직선들의 평균을 구해보자.
 	cout << "Group1 size: " << group1.size() << endl;
 	cout << "Group2 size: " << group2.size() << endl;
 	
-
 	imshow("aa", img_houghP);
-	waitKey(0);
-
 	return img_houghP;
 }
 
-Vec4i get_line_point(Vec2i input_line, Mat image){
+Vec4i get_line_point(Vec2d input_line, Mat image){
 	// (기울기, 절편)
 	Vec4i pt;	// (x1, y1)  (x2, y2)
 
-	//이미지에서 직선과 겹치는 포인트가 2개 있을 것이다.  이를 어떻게 찾을 것인가.
-	
-
-	///////////// method 1////////////
-	/// 이미지의 네 변 중 겹치는 포인트가 발생할때 그 지점을 저장하자 /////////
-	//if ((input_line[1] > 0) && (input_line[1] < image.rows)) {
-	//	pt[0] = 0;		pt[1] = input_line[1];
-	//}
-	//if (((input_line[0] * image.cols) + input_line[1]) > 0 && ((input_line[0] * image.cols) + input_line[1]) < image.rows) {
-	//	pt[0]
-	//}
-
-
-	/////////  method 2///////
-	////  발생할 수 있는 모든 경우를 생각하자.
-	//// y절편이 이미지 내에 있을 경우
-	//if ((input_line[1] < image.rows) && (input_line[1] > 0)) {
-	//	// 우측 끝점이 이미지의 상단에 위치하는 경우
-	//	pt[0] = 0;	pt[1] = input_line[1];
-	//	if (((input_line[0] * image.cols) + input_line[1]) < 0) {
-	//		pt[2] = input_line[1] * (-1) / input_line[0];	pt[3] = 0;
-	//	}
-	//	// 우측 끝점이 이미지의 하단에 위치하는 경우
-	//	else if (((input_line[0] * image.cols) + input_line[1]) > image.rows) {
-	//		pt[2] = image.rows - input_line[1] / input_line[0];	pt[3] = image.rows;
-	//	}
-	//	// 평행한 직선일 경우
-	//	else {
-	//		pt[2] = image.cols;	pt[3] = (image.cols * input_line[0] + input_line[1]);
-	//	}
-	//}
-	//// y절편이 이미지 내에 없는 경우
-	//else {
-	//	// 우측 끝점이 이미지 내에 있을 경우
-	//	if (((input_line[0] * image.cols) + input_line[1] > 0) && ((input_line[0] * image.cols) + input_line[1] < image.rows)) {
-	//		pt[2] = image.cols;	pt[3] = (input_line[0] * image.cols) + input_line[1];
-	//		if ((input_line[1] * (-1) / input_line[0]) > 0 && (input_line[1] * (-1) / input_line[0]) < image.cols) {
-	//			pt[0] = (input_line[1] * (-1) / input_line[0]);	pt[1] = 0;
-	//		}
-	//		else {
-	//			pt[0] = (image.rows - input_line[1]) / input_line[0];	pt[1] = image.rows;
-	//		}
-	//	}
-	//	else {
-	//		pt[0] = (input_line[1] * (-1) / input_line[0]);	pt[1] = 0;
-	//		pt[2] = (image.rows - input_line[1]) / input_line[0];	pt[3] = image.rows;
-	//	}
-	//}
+	// y절편이 이미지 내에 있을 경우
+	if ((input_line[1] < image.rows) && (input_line[1] > 0)) {
+		// 우측 끝점이 이미지의 상단에 위치하는 경우
+		pt[0] = 0;	pt[1] = input_line[1];
+		if (((input_line[0] * image.cols) + input_line[1]) < 0) {
+			pt[2] = input_line[1] * (-1) / input_line[0];	pt[3] = 0;
+		}
+		// 우측 끝점이 이미지의 하단에 위치하는 경우
+		else if (((input_line[0] * image.cols) + input_line[1]) > image.rows) {
+			pt[2] = (image.rows - input_line[1] )/ input_line[0];	pt[3] = image.rows;
+		}
+		// 평행한 직선일 경우
+		else {
+			pt[2] = image.cols;	pt[3] = (image.cols * input_line[0] + input_line[1]);
+		}
+	}
+	// y절편이 이미지 내에 없는 경우
+	else {
+		// 우측 끝점이 이미지 내에 있을 경우
+		if (((input_line[0] * image.cols) + input_line[1] > 0) && ((input_line[0] * image.cols) + input_line[1] < image.rows)) {
+			pt[2] = image.cols;	pt[3] = (input_line[0] * image.cols) + input_line[1];
+			if ((input_line[1] * (-1) / input_line[0]) > 0 && (input_line[1] * (-1) / input_line[0]) < image.cols) {
+				pt[0] = (input_line[1] * (-1) / input_line[0]);	pt[1] = 0;
+			}
+			else {
+				pt[0] = (image.rows - input_line[1]) / input_line[0];	pt[1] = image.rows;
+			}
+		}
+		else {
+			pt[0] = (input_line[1] * (-1) / input_line[0]);	pt[1] = 0;
+			pt[2] = (image.rows - input_line[1]) / input_line[0];	pt[3] = image.rows;
+		}
+	}
 	return pt;
 }
 
@@ -242,13 +222,12 @@ double line2point_dist(Point line_point1, Point line_point2, Point point) {
 
 	double upper = abs(((y2 - y1) * new_x) + ((x1 - x2) * new_y) + (x1 * y1 + x2 * y1 - x1 * y2 - x1 * y1));
 	double lower = sqrt(pow(y2 - y1, 2) + pow(x1 - x2, 2));
-
 	double distance = abs( upper / lower);
 
 	return distance;
 }
 
-Vec2i get_avg_line(vector<Vec4i> group) {
+Vec2d get_avg_line(vector<Vec4i> group) {
 	// 해당 함수는 buff를 입력받아 저장된 좌표들을 통해
 	// 직선들의 평균 기울기와 y절편을 반환한다.
 	// (기울기, 절편)
@@ -260,7 +239,7 @@ Vec2i get_avg_line(vector<Vec4i> group) {
 		int x1 = group[i][0];		int y1 = group[i][1];
 		int x2 = group[i][2];		int y2 = group[i][3];
 
-		double diff_temp = (y2 - y1) / (x2 - x1);
+		double diff_temp = (double)(y2 - y1) / (x2 - x1);
 		diff = diff + diff_temp;
 		y_intercept = y_intercept + (diff_temp * (x1) * (-1) + y1);
 	}
@@ -268,5 +247,5 @@ Vec2i get_avg_line(vector<Vec4i> group) {
 	double diff_avg = double(diff) / (group.size());
 	double intercept_avg = double(y_intercept) / (group.size());
 
-	return (diff_avg, intercept_avg);
+	return Vec2d(diff_avg, intercept_avg);
 }
