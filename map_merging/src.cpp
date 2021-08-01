@@ -37,6 +37,15 @@ int main() {
 	imshow("global", global_line_img);
 	imshow("src", src_line_img);
 
+
+	Mat rotate_img = src;
+	Point2f center((src.cols - 1) / 2.0, (src.rows - 1) / 2.0);
+	rotate_img = getRotationMatrix2D(center, 45, 1.0);
+	Mat dst;
+	warpAffine(src_line_img, dst, rotate_img, src.size());
+	imshow("dst", dst);
+
+
 	waitKey(0);
 	return 0;
 }
